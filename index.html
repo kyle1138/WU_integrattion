@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+
+    <style>
+      *{
+        color:#858585;
+        font-family: Helvetica;
+        padding: 0;
+        margin:0;
+        line-height: 100%;
+        }
+
+        p{
+          color: #54565A;
+
+        }
+        span{
+          font-weight: bold;
+          color: #54565A;
+        }
+
+        img{
+          float: left;
+          padding: 3px 17px 12px 4px;
+        }
+
+      .dayBoxClass{
+        float:left;
+        width: 172px;
+        margin: 0px 4px 0px 11px;
+        font-size: 14px;
+
+      }
+
+      .dayTopClass{
+        background-color: #64a9c1;
+        color:#FFFFFF;
+        height: 22px;
+        padding: 6px 0px 0px 9px;
+        font-size: 14px;
+        font-weight: bold;
+      }
+
+      #heading{
+        font-size: 22px;
+        margin: 0px auto;
+        text-align: center;
+        padding: 11px 21px 0px 0px;
+        height: 50px;
+        color: #858585;
+      }
+      #main{
+        width:575px;
+        height:167px;
+      }
+
+    </style>
+  </head>
+  <body>
+
+  <script type="text/javascript">
+    var body = document.querySelector('body');
+    var wuURL = "http://api.wunderground.com/api/api_key/forecast10day/q/";
+    var wuLocationURL = "http://api.wunderground.com/api/api_key/conditions/q/";
+    var iconPath = "http://icons.wxug.com/i/c/g/";
+    var locationString = '';
+    var paramObj = {};
+    var forecastObj = {};
+    var path = window.location.search.substring(1);
+    var paramArr = path.split('&');
+
+    // turns the parameters into key value pairs of a parameter object
+    for(var i = 0; i < paramArr.length; i ++){
+        paramObj[paramArr[i].split('=')[0]] = paramArr[i].split('=')[1];
+
+    }
+
+    // creating an ajax call to WU in order to get a presentable location string
+    var xhr_location = new XMLHttpRequest();
+    xhr_location.open('GET', wuLocationURL + paramObj.zip_code + '.json' );
+    xhr_location.addEventListener("load", function() {
+
+      locationString = JSON.parse(xhr_location.responseText).current_observation.display_location.full;
+      xhr_forecast.send();
+    });
+
+    // creating a second ajax call to get the 10 day forecast after the location is returned from WU
+    var xhr_forecast = new XMLHttpRequest();
+    xhr_forecast.open('GET', wuURL + paramObj.zip_code + '.json' );
+    xhr_forecast.addEventListener("load", function() {
+
+      forecastObj = JSON.parse(xhr_forecast.responseText);
+      builder();
+
+    });
+
+    xhr_location.send();
+
+    // function to be called within the event listener for second ajax request
+    // builds the dom elements
+    var builder = function(){
+
+      var dateArray = paramObj.date.split("/");
+      var forecastArray = forecastObj.forecast.simpleforecast.forecastday;
+
+      var main = document.createElement('div');
+      main.id = 'main';
+
+      var headingDiv = document.createElement('div');
+      headingDiv.id = 'heading';
+      // if the entire string can't fit neatly on one line, the location is moved beneath the first part
+      if(locationString.length > 18){
+        locationString = '<br>' + locationString;
+      }else{
+        locationString = ' ' + locationString;
+        }
+      headingDiv.innerHTML = 'WEATHER FORECAST FOR' + locationString.toUpperCase();
+      main.appendChild(headingDiv);
+
+      // iterate over the forecast array check for a matching date
+      for(var day = 0; day <= 9 ; day ++){
+
+        if(parseInt(dateArray[0]) === forecastArray[day].date.month
+        && parseInt(dateArray[1]) === forecastArray[day].date.day
+        && parseInt(dateArray[2]) === forecastArray[day].date.year){
+
+          body.appendChild(main);
+
+// iterate over the matched date, plus the next two days.
+// if matched date is the very last or 2nd to last, then last 3 days are used
+          for(var x = Math.min(day,7); x < (Math.min(day,7) + 3); x ++){
+
+            var dayBox = document.createElement('div');
+            var dayTop = document.createElement('div');
+            var icon = document.createElement('img');
+            var details = document.createElement('p');
+
+            dayTop.className = "dayTopClass";
+            dayBox.className = "dayBoxClass";
+
+            if(x === 0){
+              dayTop.innerText = "Today:";
+            }else{
+              dayTop.innerText = forecastArray[x].date.weekday + ':';
+            }
+
+            // controls the format of the forecast depending on length of condition string
+            if(forecastArray[x].conditions.length <= 14){
+              details.innerHTML = '<br>' + forecastArray[x].conditions + '<br><br><span>' +
+              forecastArray[x].high.fahrenheit + '&deg</span> / ' + forecastArray[x].low.fahrenheit + '&deg F';
+            }else{
+              details.innerHTML = '<br>' + forecastArray[x].conditions + '<br><span>' +
+              forecastArray[x].high.fahrenheit + '&deg</span> / ' + forecastArray[x].low.fahrenheit + '&deg F';
+            }
+
+            icon.src = iconPath + forecastArray[x].icon + '.gif';
+
+            dayBox.appendChild(dayTop);
+            dayBox.appendChild(icon);
+            dayBox.appendChild(details);
+            main.appendChild(dayBox);
+
+          }
+          // break outer for loop
+          day = 999;
+
+        }
+      }
+}
+
+  </script>
+  </body>
+</html>
